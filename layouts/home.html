@@ -1,0 +1,36 @@
+{{ define "main" }}
+{{- $all := where site.RegularPages "Type" "in" site.MainSections }}
+{{- $paginator := .Paginate $all }}
+{{- $data := partialCached "transit/lines.html" . "transit-lines" }}
+<div class="wrap">
+    {{- if eq $paginator.PageNumber 1 }}
+    <div class="intro">
+        <div>
+            <h1>{{ site.Params.tagline | default site.Title }}</h1>
+            <p>{{ site.Params.transit.intro | default "Every topic is a line. Every article is a station. Change lines wherever they meet." }}</p>
+        </div>
+        {{- with $all }}
+        {{- $byDate := .ByDate }}
+        <p class="stats">{{ len $data.lines }} {{ cond (eq (len $data.lines) 1) "line" "lines" }} · {{ len . }} {{ cond (eq (len .) 1) "station" "stations" }} · {{ (index $byDate 0).Date.Year }}{{ with (index $byDate.Reverse 0).Date.Year }}{{ if ne . (index $byDate 0).Date.Year }}–{{ . }}{{ end }}{{ end }}</p>
+        {{- end }}
+    </div>
+    {{- partial "transit/map.html" . }}
+    {{- else }}
+    <div class="intro"><h1>Stations <span class="muted">· page {{ $paginator.PageNumber }}</span></h1></div>
+    {{- end }}
+
+    <div class="cols">
+        <section class="stations">
+            <h2 class="band">Stations, newest first</h2>
+            <ol class="station-list">
+                {{- range $paginator.Pages }}{{ partial "transit/station.html" . }}{{ else }}<li class="empty">No articles yet.</li>{{ end }}
+            </ol>
+            {{- partial "pagination.html" $paginator }}
+        </section>
+        <aside class="side">
+            {{- partial "transit/legend.html" . }}
+            {{- partial "transit/conductor.html" . }}
+        </aside>
+    </div>
+</div>
+{{ end }}

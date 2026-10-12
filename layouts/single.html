@@ -1,0 +1,67 @@
+{{ define "main" }}
+{{- $lines := partial "transit/page-lines.html" . }}
+{{- $isStation := in site.MainSections .Type }}
+<article class="post"{{ with index $lines 0 }} style="--accent: {{ .colour }}"{{ end }}>
+    <header class="wrap post-head">
+        {{- if $isStation }}
+        <p class="kicker">
+            {{- if not .Date.IsZero }}<time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date | time.Format ":date_long" }}</time> · {{ end }}
+            {{- .ReadingTime }} min{{ with .Params.author | default site.Params.author }} · {{ . }}{{ end }}
+        </p>
+        {{- end }}
+        <h1>{{ .Title }}</h1>
+        {{- with .Description }}<p class="lede">{{ . | markdownify }}</p>{{ end }}
+    </header>
+
+    {{- if and $isStation $lines }}
+    <section class="wrap here-wrap" aria-labelledby="here-title">
+        <div class="here">
+            <h2 id="here-title">You are here</h2>
+            {{- range $lines }}
+            {{- $idx := -1 }}
+            {{- range $i, $s := .stations }}{{ if eq $s.RelPermalink $.RelPermalink }}{{ $idx = $i }}{{ end }}{{ end }}
+            {{- $prev := false }}{{ $next := false }}
+            {{- if gt $idx 0 }}{{ $prev = index .stations (sub $idx 1) }}{{ end }}
+            {{- if lt (add $idx 1) (len .stations) }}{{ $next = index .stations (add $idx 1) }}{{ end }}
+            <div class="here-row" style="--c: {{ .colour }}">
+                {{ partial "transit/bullet.html" . }}
+                <div class="side-stop prev">
+                    {{- with $prev }}<a href="{{ .RelPermalink }}" title="Older on this line"><span class="hide">Older: </span>{{ .LinkTitle }}</a>{{ else }}<span class="none">Start of line</span>{{ end }}
+                    <span class="track{{ if not $prev }} dim{{ end }}" aria-hidden="true"></span>
+                </div>
+                <span class="you" aria-hidden="true"></span>
+                <div class="side-stop next">
+                    <span class="track{{ if not $next }} dim{{ end }}" aria-hidden="true"></span>
+                    {{- with $next }}<a href="{{ .RelPermalink }}" title="Newer on this line"><span class="hide">Newer: </span>{{ .LinkTitle }}</a>{{ else }}<span class="none">End of line</span>{{ end }}
+                </div>
+            </div>
+            {{- end }}
+        </div>
+    </section>
+    {{- end }}
+
+    <div class="wrap">
+        <div class="prose">
+            {{ .Content }}
+        </div>
+
+        {{- if and $isStation $lines }}
+        <section class="changes">
+            <h2 class="band">Change here for</h2>
+            <ul>
+                {{- range $lines }}
+                <li>{{ partial "transit/bullet.html" . }} <a href="{{ .url }}">{{ .name }} line</a> <span class="legend-n">{{ .count }} {{ cond (eq .count 1) "station" "stations" }}</span></li>
+                {{- end }}
+            </ul>
+            <p><a class="back" href="{{ site.Home.RelPermalink }}">← Back to the map</a></p>
+        </section>
+        {{- end }}
+
+        {{- if and site.Config.Services.Disqus.Shortname (not (.Params.disableComments | default false)) }}
+        <section class="comments">
+            {{ partial "disqus.html" . }}
+        </section>
+        {{- end }}
+    </div>
+</article>
+{{ end }}

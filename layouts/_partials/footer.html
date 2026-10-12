@@ -1,0 +1,10 @@
+<footer class="foot">
+    <div class="wrap foot-in">
+        <p>
+            {{- with site.Copyright }}{{ replace . "{year}" (now.Format "2006") | markdownify }}
+            {{- else }}&copy; {{ now.Format "2006" }} {{ site.Params.author }}{{ end }}
+            &middot; <a href="https://github.com/pravin/hugo-theme-transit">Theme Transit</a>
+        </p>
+        {{- partial "social.html" . }}
+    </div>
+</footer>

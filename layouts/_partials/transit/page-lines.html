@@ -1,0 +1,9 @@
+{{- /* Returns the lines (see transit/lines.html) that the given page belongs to, most-used first */ -}}
+{{- $data := partialCached "transit/lines.html" . "transit-lines" }}
+{{- $mine := slice }}
+{{- range .GetTerms $data.taxonomy }}{{ $mine = $mine | append .RelPermalink }}{{ end }}
+{{- $out := slice }}
+{{- range $data.lines }}
+  {{- if in $mine .url }}{{ $out = $out | append . }}{{ end }}
+{{- end }}
+{{- return $out }}

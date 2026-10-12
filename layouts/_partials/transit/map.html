@@ -1,0 +1,128 @@
+{{- /*
+Draws the home page map as an SVG. Each line (tag) is a row; each post is a station placed
+along x by its date. A post on several drawn lines gets a marker on each, joined by an
+interchange bar. Posts on none of the drawn lines sit on a grey "Other" line.
+*/ -}}
+{{- $cfg := site.Params.transit | default dict }}
+{{- $data := partialCached "transit/lines.html" . "transit-lines" }}
+{{- $maxLines := $cfg.maxLines | default 8 | int }}
+{{- $labelCount := 12 }}
+{{- if isset $cfg "labels" }}{{ $labelCount = int $cfg.labels }}{{ end }}
+{{- $pages := (where site.RegularPages "Type" "in" site.MainSections).ByDate }}
+
+{{- with $pages }}
+{{- $lines := first $maxLines $data.lines }}
+
+{{- /* Posts not on any drawn line ride the "Other" line */}}
+{{- $onMap := slice }}
+{{- range $lines }}{{ $onMap = $onMap | append .urls }}{{ end }}
+{{- $others := slice }}
+{{- $otherURLs := slice }}
+{{- range $pages }}
+  {{- if not (in $onMap .RelPermalink) }}{{ $others = $others | append . }}{{ $otherURLs = $otherURLs | append .RelPermalink }}{{ end }}
+{{- end }}
+{{- if $others }}
+  {{- $lines = $lines | append (dict "name" ($cfg.otherName | default "Other topics") "code" "··" "colour" "" "url" "" "stations" $others "urls" $otherURLs) }}
+{{- end }}
+
+{{- /* Geometry, in viewBox units */}}
+{{- $xl := 170.0 }}{{ $xr := 1100.0 }}
+{{- $top := cond (gt $labelCount 0) 200.0 50.0 }}
+{{- $step := 46.0 }}
+{{- $width := 1320 }}
+{{- $height := add (add $top (mul $step (sub (len $lines) 1))) 80.0 }}
+{{- $min := (index $pages 0).Date.Unix }}
+{{- $max := (index $pages.Reverse 0).Date.Unix }}
+{{- $span := sub $max $min }}
+{{- $axis := sub $height 28.0 }}
+
+{{- /* x position of every post, keyed by URL */}}
+{{- $s := newScratch }}
+{{- range $pages }}
+  {{- $s.SetInMap "x" .RelPermalink (partial "transit/x.html" (dict "t" .Date.Unix "min" $min "span" $span "xl" $xl "xr" $xr)) }}
+{{- end }}
+{{- $xs := $s.Get "x" }}
+
+{{- /* Name the newest stations, skipping any that would sit on top of a newer label */}}
+{{- $labelled := slice }}
+{{- $lastX := 100000.0 }}
+{{- range $pages.Reverse }}
+  {{- if ge (len $labelled) $labelCount }}{{ break }}{{ end }}
+  {{- $x := index $xs .RelPermalink }}
+  {{- if ge (sub $lastX $x) 28 }}{{ $labelled = $labelled | append .RelPermalink }}{{ $lastX = $x }}{{ end }}
+{{- end }}
+
+<figure class="map">
+<svg viewBox="0 0 {{ $width }} {{ printf "%.0f" $height }}" role="img" aria-labelledby="map-title">
+  <title id="map-title">Map of {{ len $pages }} articles: each topic is a coloured line running through the years, each article is a station</title>
+
+  {{- /* Year gridlines */}}
+  <g class="years">
+  {{- $firstYear := (index $pages 0).Date.Year }}
+  {{- $lastYear := (index $pages.Reverse 0).Date.Year }}
+  {{- $prevX := -100.0 }}
+  {{- if eq $firstYear $lastYear }}
+    <text x="{{ printf "%.1f" (div (add $xl $xr) 2) }}" y="{{ printf "%.1f" $height }}" dy="-6" text-anchor="middle">{{ $firstYear }}</text>
+  {{- else }}
+    <text x="{{ $xl }}" y="{{ printf "%.1f" $height }}" dy="-6">{{ $firstYear }}</text>
+    {{- $prevX = $xl }}
+    {{- range $y := seq (add $firstYear 1) $lastYear }}
+      {{- $t := (time (printf "%d-01-01T00:00:00Z" $y)).Unix }}
+      {{- $x := partial "transit/x.html" (dict "t" $t "min" $min "span" $span "xl" $xl "xr" $xr) }}
+      <line x1="{{ printf "%.1f" $x }}" x2="{{ printf "%.1f" $x }}" y1="{{ sub $top 30 }}" y2="{{ printf "%.1f" $axis }}"></line>
+      {{- if gt (sub $x $prevX) 44 }}
+      <text x="{{ printf "%.1f" (add $x 6) }}" y="{{ printf "%.1f" $height }}" dy="-6">{{ $y }}</text>
+      {{- $prevX = $x }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  </g>
+
+  {{- /* Lines, with a bullet in the left column */}}
+  {{- range $i, $l := $lines }}
+    {{- $y := add $top (mul $step $i) }}
+    {{- $a := 100000.0 }}{{ $b := -1.0 }}
+    {{- range $l.urls }}{{ $x := index $xs . }}{{ if lt $x $a }}{{ $a = $x }}{{ end }}{{ if gt $x $b }}{{ $b = $x }}{{ end }}{{ end }}
+    {{- $pad := cond (eq $a $b) 44.0 26.0 }}
+    {{- $x1 := sub $a $pad }}{{ $x2 := add $b $pad }}
+    {{- $cls := cond (eq $l.colour "") "route other" "route" }}
+  <g class="{{ $cls }}"{{ with $l.colour }} style="--c: {{ . }}"{{ end }}>
+    <line class="guide" x1="86" x2="{{ printf "%.1f" (sub $x1 12) }}" y1="{{ $y }}" y2="{{ $y }}"></line>
+    <path class="line" d="M{{ printf "%.1f" $x1 }} {{ $y }}H{{ printf "%.1f" $x2 }}"></path>
+    <path class="end" d="M{{ printf "%.1f" $x1 }} {{ sub $y 12 }}v24M{{ printf "%.1f" $x2 }} {{ sub $y 12 }}v24"></path>
+    {{- if $l.url }}
+    <a href="{{ $l.url }}"><title>{{ $l.name }} line · {{ len $l.urls }} {{ cond (eq (len $l.urls) 1) "station" "stations" }}</title>
+      <rect class="bul" x="40" y="{{ sub $y 13 }}" width="40" height="26" rx="13"></rect>
+      <text class="code" x="60" y="{{ $y }}" dy="4.5" text-anchor="middle">{{ $l.code }}</text>
+    </a>
+    {{- else }}
+    <rect class="bul" x="40" y="{{ sub $y 13 }}" width="40" height="26" rx="13"><title>{{ $l.name }}</title></rect>
+    <text class="code" x="60" y="{{ $y }}" dy="4.5" text-anchor="middle">{{ $l.code }}</text>
+    {{- end }}
+  </g>
+  {{- end }}
+
+  {{- /* Stations */}}
+  {{- range $pages }}
+    {{- $url := .RelPermalink }}
+    {{- $x := index $xs $url }}
+    {{- $rows := slice }}
+    {{- range $i, $l := $lines }}{{ if in $l.urls $url }}{{ $rows = $rows | append $i }}{{ end }}{{ end }}
+    {{- $y1 := add $top (mul $step (index $rows 0)) }}
+    {{- $y2 := add $top (mul $step (index $rows (sub (len $rows) 1))) }}
+  <a class="stn" href="{{ $url }}"><title>{{ .LinkTitle }} · {{ .Date | time.Format ":date_medium" }}</title>
+    {{- if in $labelled $url }}
+    <line class="tick" x1="{{ printf "%.1f" $x }}" x2="{{ printf "%.1f" $x }}" y1="{{ sub $top 22 }}" y2="{{ sub $y1 14 }}"></line>
+    <text class="lbl" transform="translate({{ printf "%.1f" $x }} {{ sub $top 28 }}) rotate(-40)">{{ .LinkTitle | truncate 34 }}</text>
+    {{- end }}
+    {{- if gt (len $rows) 1 }}
+    <line class="ic" x1="{{ printf "%.1f" $x }}" x2="{{ printf "%.1f" $x }}" y1="{{ $y1 }}" y2="{{ $y2 }}"></line>
+    {{- end }}
+    {{- range $rows }}
+    <circle cx="{{ printf "%.1f" $x }}" cy="{{ add $top (mul $step .) }}" r="9.5"></circle>
+    {{- end }}
+  </a>
+  {{- end }}
+</svg>
+</figure>
+{{- end }}

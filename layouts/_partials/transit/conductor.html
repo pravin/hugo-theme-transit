@@ -1,0 +1,9 @@
+{{- /* The about box: author photo, name, blurb and social links */ -}}
+<section class="conductor">
+    {{- with site.Params.authorImgPath }}
+    <img src="{{ strings.TrimPrefix "/" . | relURL }}" alt="" width="64" height="64" loading="lazy">
+    {{- end }}
+    <h2>{{ site.Params.transit.conductorLabel | default "Your conductor" }}</h2>
+    <p><strong>{{ site.Params.author }}</strong>{{ with site.Params.authorBlurb }}. {{ . | markdownify }}{{ end }}</p>
+    {{- partial "social.html" . }}
+</section>

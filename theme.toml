@@ -1,0 +1,12 @@
+name = "Transit"
+license = "MIT"
+licenselink = "https://github.com/pravin/hugo-theme-transit/blob/main/LICENSE"
+description = "A blog theme that draws your archive as a transit map: tags are lines, posts are stations"
+homepage = "https://github.com/pravin/hugo-theme-transit/"
+tags = ["blog", "responsive", "minimal", "light", "dark", "disqus", "personal", "typography"]
+features = ["posts", "tags", "transit map of posts", "related posts by tag", "dark mode", "syntax highlighting", "comments"]
+min_version = "0.146.0"
+
+[author]
+  name = "Pravin Paratey"
+  homepage = "https://cto.me.uk"

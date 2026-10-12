@@ -1,0 +1,12 @@
+{{- /* One station (post) in a list: ring, title, description, line bullets and date */ -}}
+<li class="station">
+    <span class="ring" aria-hidden="true"></span>
+    <div class="station-body">
+        <h3><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></h3>
+        {{- with .Description }}<p>{{ . | markdownify }}</p>{{ else }}{{ with .Summary }}<p>{{ . | plainify | truncate 160 }}</p>{{ end }}{{ end }}
+        <div class="meta-row">
+            {{- range partial "transit/page-lines.html" . }}{{ partial "transit/bullet.html" . }}{{ end }}
+            {{- if not .Date.IsZero }}<time class="date" datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date | time.Format ":date_medium" }}</time>{{ end }}
+        </div>
+    </div>
+</li>

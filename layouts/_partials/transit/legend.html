@@ -1,0 +1,14 @@
+{{- $data := partialCached "transit/lines.html" . "transit-lines" }}
+{{- with $data.lines }}
+<section class="legend">
+    <h2 class="band">Lines</h2>
+    <ul>
+        {{- range first (site.Params.transit.legendLines | default 12 | int) . }}
+        <li><a href="{{ .url }}"><span class="swatch" style="--c: {{ .colour }}"></span><span class="legend-name">{{ .name }}</span><span class="legend-n">{{ .count }} {{ cond (eq .count 1) "station" "stations" }}</span></a></li>
+        {{- end }}
+    </ul>
+    {{- if gt (len .) (site.Params.transit.legendLines | default 12 | int) }}
+    <p class="more"><a href="{{ printf "%s/" $data.taxonomy | relURL }}">All {{ len . }} lines →</a></p>
+    {{- end }}
+</section>
+{{- end }}

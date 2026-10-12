@@ -1,0 +1,63 @@
+{{- /*
+Builds the transit network from the site's taxonomy (tags by default).
+Returns a dict with "lines": a slice of line dicts, most-used first. Each line has
+  key, name, url, colour, code, count, stations (main-section pages, oldest first), urls.
+Call it with partialCached "transit/lines.html" . "transit-lines" — it only reads site data.
+*/ -}}
+{{- $cfg := site.Params.transit | default dict }}
+{{- $palette := $cfg.palette | default (slice "#C62828" "#1565C0" "#2E7D32" "#6A1B9A" "#B84A00" "#00796B" "#AD1457" "#795548" "#303F9F" "#7C6A0A") }}
+{{- $colors := $cfg.colors | default dict }}
+{{- $codes := $cfg.codes | default dict }}
+{{- $tax := $cfg.taxonomy | default "tags" }}
+
+{{- /* Count only pages from the main sections, so an About page's tags don't become lines */}}
+{{- $entries := slice }}
+{{- with index site.Taxonomies $tax }}
+  {{- range .ByCount }}
+    {{- $stations := where .Pages "Type" "in" site.MainSections }}
+    {{- if $stations }}
+      {{- $entries = $entries | append (dict "key" .Name "page" .Page "count" (len $stations) "stations" $stations.ByDate) }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- $entries = sort $entries "count" "desc" }}
+
+{{- $used := dict }}
+{{- $lines := slice }}
+{{- range $i, $e := $entries }}
+  {{- $name := $e.page.LinkTitle }}
+  {{- $colour := index $colors (lower $e.key) | default (index $palette (mod $i (len $palette))) }}
+
+  {{- /* Two-letter code: from params.transit.codes, else initials of a multi-word name,
+         else the first letter plus a later one, avoiding codes already taken */}}
+  {{- $code := index $codes (lower $e.key) }}
+  {{- if not $code }}
+    {{- $clean := replaceRE `[^A-Za-z0-9]+` " " $name | strings.TrimSpace | upper }}
+    {{- $words := split $clean " " }}
+    {{- $flat := replace $clean " " "" }}
+    {{- $cands := slice }}
+    {{- if gt (len $words) 1 }}
+      {{- $cands = $cands | append (printf "%s%s" (substr (index $words 0) 0 1) (substr (index $words 1) 0 1)) }}
+    {{- end }}
+    {{- if gt (len $flat) 1 }}
+      {{- $first := substr $flat 0 1 }}
+      {{- range $j := seq 1 (sub (len $flat) 1) }}
+        {{- $cands = $cands | append (printf "%s%s" $first (substr $flat $j 1)) }}
+      {{- end }}
+    {{- else if $flat }}
+      {{- $cands = $cands | append $flat }}
+    {{- end }}
+    {{- $code = index $cands 0 | default (substr $name 0 2 | upper) }}
+    {{- range $cands }}
+      {{- if not (index $used (lower .)) }}{{ $code = . }}{{ break }}{{ end }}
+    {{- end }}
+  {{- end }}
+  {{- $used = merge $used (dict (lower $code) true) }}
+
+  {{- $urls := slice }}
+  {{- range $e.stations }}{{ $urls = $urls | append .RelPermalink }}{{ end }}
+  {{- $lines = $lines | append (dict
+      "key" $e.key "name" $name "url" $e.page.RelPermalink "colour" $colour "code" $code
+      "count" $e.count "stations" $e.stations "urls" $urls) }}
+{{- end }}
+{{- return dict "lines" $lines "taxonomy" $tax }}

@@ -1,0 +1,23 @@
+{{ define "main" }}
+{{- $data := partialCached "transit/lines.html" . "transit-lines" }}
+<div class="wrap">
+    <div class="intro"><h1>{{ if eq .Data.Plural $data.taxonomy }}All lines{{ else }}{{ .Title }}{{ end }}</h1>
+        <p>{{ len .Data.Terms }} {{ cond (eq (len .Data.Terms) 1) "line" "lines" }}, busiest first.</p></div>
+    <ul class="line-grid">
+        {{- range .Data.Terms.ByCount }}
+        {{- $line := false }}
+        {{- with where $data.lines "url" .Page.RelPermalink }}{{ $line = index . 0 }}{{ end }}
+        <li>
+            <a class="line-card" href="{{ .Page.RelPermalink }}"{{ with $line }} style="--c: {{ .colour }}"{{ end }}>
+                <span class="line-top">
+                    <span class="bullet{{ if not $line }} plain{{ end }}">{{ with $line }}{{ .code }}{{ else }}{{ substr .Page.LinkTitle 0 2 | upper }}{{ end }}</span>
+                    <span class="line-name">{{ .Page.LinkTitle }}</span>
+                </span>
+                <span class="mini" aria-hidden="true">{{ range seq (cond (gt .Count 10) 10 .Count) }}<i></i>{{ end }}</span>
+                <span class="legend-n">{{ with $line }}{{ .count }} {{ cond (eq .count 1) "station" "stations" }}{{ else }}{{ .Count }} {{ cond (eq .Count 1) "page" "pages" }}{{ end }}</span>
+            </a>
+        </li>
+        {{- end }}
+    </ul>
+</div>
+{{ end }}

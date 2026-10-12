@@ -1,0 +1,48 @@
+{{ define "main" }}
+{{- $data := partialCached "transit/lines.html" . "transit-lines" }}
+{{- $line := false }}
+{{- if eq .Kind "term" }}{{ with where $data.lines "url" .RelPermalink }}{{ $line = index . 0 }}{{ end }}{{ end }}
+{{- $paginator := .Paginate .Pages }}
+<div class="wrap">
+    {{- if eq .Kind "term" }}
+    {{- /* A single line, drawn top to bottom, newest station first */}}
+    <header class="route-head"{{ with $line }} style="--c: {{ .colour }}"{{ end }}>
+        <span class="bullet big{{ if not $line }} plain{{ end }}">{{ with $line }}{{ .code }}{{ else }}{{ substr $.Title 0 2 | upper }}{{ end }}</span>
+        <div>
+            <h1>{{ .Title }} line</h1>
+            {{- with .Pages.ByDate }}
+            <p class="stats">{{ len . }} {{ cond (eq (len .) 1) "station" "stations" }} · {{ (index . 0).Date.Year }}{{ with (index .Reverse 0).Date.Year }}{{ if ne . (index $.Pages.ByDate 0).Date.Year }} → {{ . }}{{ end }}{{ end }}</p>
+            {{- end }}
+        </div>
+    </header>
+    <ol class="route"{{ with $line }} style="--c: {{ .colour }}"{{ end }}>
+        {{- range $paginator.Pages }}
+        <li>
+            <h2><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></h2>
+            {{- with .Description }}<p>{{ . | markdownify }}</p>{{ end }}
+            <div class="meta-row">
+                {{- range partial "transit/page-lines.html" . }}{{ if ne .url $.RelPermalink }}{{ partial "transit/bullet.html" . }}{{ end }}{{ end }}
+                {{- if not .Date.IsZero }}<time class="date" datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date | time.Format ":date_medium" }}</time>{{ end }}
+            </div>
+        </li>
+        {{- end }}
+    </ol>
+    {{- else }}
+    <div class="intro"><h1>{{ .Title }}</h1>{{ with .Description }}<p>{{ . }}</p>{{ end }}</div>
+    {{- .Content }}
+    {{- $year := "" }}
+    {{- range $paginator.Pages }}
+    {{- $y := .Date.Format "2006" }}
+    {{- if ne $y $year }}
+    {{- if $year }}</ol>{{ end }}
+    <h2 class="band year">{{ $y }}</h2>
+    <ol class="station-list">
+    {{- $year = $y }}
+    {{- end }}
+    {{ partial "transit/station.html" . }}
+    {{- end }}
+    {{- if $year }}</ol>{{ end }}
+    {{- end }}
+    {{- partial "pagination.html" $paginator }}
+</div>
+{{ end }}

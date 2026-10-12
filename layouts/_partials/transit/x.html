@@ -1,0 +1,4 @@
+{{- /* Maps a Unix time onto the map's x axis. Expects dict "t" "min" "span" "xl" "xr". */ -}}
+{{- $r := 0.5 }}
+{{- if gt .span 0 }}{{ $r = div (float (sub .t .min)) (float .span) }}{{ end }}
+{{- return add .xl (mul $r (sub .xr .xl)) }}
